@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pokémon Move Coverage</title>
+    <style>
+      body {
+        background: #f7f8fa;
+        font-family: "Segoe UI", "Roboto", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 480px;
+        margin: 3em auto;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        padding: 2em 2.5em 2em 2.5em;
+      }
+      h1 {
+        text-align: center;
+        font-size: 1.7em;
+        margin-bottom: 1.2em;
+        color: #2d3a4a;
+        letter-spacing: 0.01em;
+      }
+      label {
+        font-weight: 500;
+        color: #3b4a5a;
+        margin-right: 0.5em;
+      }
+      select {
+        font-size: 1em;
+        padding: 0.4em 1.2em 0.4em 0.7em;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #f3f4f6;
+        margin-bottom: 1em;
+        margin-right: 1em;
+        outline: none;
+        transition: border 0.2s;
+      }
+      select:focus {
+        border: 1.5px solid #6c63ff;
+        background: #eef1fa;
+      }
+      .result {
+        margin-top: 2em;
+        background: #f6f8fc;
+        border-radius: 12px;
+        padding: 1.2em 1.5em;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+        font-size: 1.07em;
+        color: #2d3a4a;
+      }
+      .type {
+        display: inline-block;
+        padding: 0.18em 0.85em;
+        border-radius: 1em;
+        color: #fff;
+        font-weight: 500;
+        font-size: 0.98em;
+        margin: 0.12em 0.18em 0.12em 0;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+        border: 1.5px solid rgba(0, 0, 0, 0.07);
+        letter-spacing: 0.01em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+      .coverage-group {
+        margin-bottom: 0.7em;
+        padding-left: 0.5em;
+        border-left: 3px solid #e0e7ef;
+      }
+      .coverage-group strong {
+        color: #6c63ff;
+        font-weight: 600;
+      }
+      .weaknesses-label,
+      .coverage-label {
+        font-weight: 600;
+        color: #6c63ff;
+        margin-bottom: 0.4em;
+        margin-top: 0.7em;
+        display: block;
+        font-size: 1.08em;
+      }
+      .coverage-table, .weaknesses-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0.7em;
+        background: #f9fbfd;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      }
+      .coverage-table th,
+      .coverage-table td,
+      .weaknesses-table th,
+      .weaknesses-table td {
+        padding: 0.7em 0.7em;
+        text-align: left;
+      }
+      .coverage-table th,
+      .weaknesses-table th {
+        background: #e7eaf3;
+        color: #4a4a7a;
+        font-size: 1em;
+        font-weight: 700;
+        border-bottom: 2px solid #d1d5db;
+      }
+      .coverage-table tr:nth-child(even) td,
+      .weaknesses-table tr:nth-child(even) td {
+        background: #f3f6fa;
+      }
+      .coverage-table tr:nth-child(odd) td,
+      .weaknesses-table tr:nth-child(odd) td {
+        background: #f9fbfd;
+      }
+      .coverage-table td,
+      .weaknesses-table td {
+        vertical-align: middle;
+        font-size: 0.98em;
+      }
+      .coverage-table th:nth-child(2)  {
+        min-width: 130px;
+      }
+      @media (max-width: 600px) {
+        .container {
+          padding: 1em 0.5em;
+        }
+        .result {
+          padding: 1em 0.5em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Pokémon Move Coverage</h1>
+      <div>
+        <label for="type1">Type 1:</label>
+        <select id="type1"></select>
+      </div>
+      <div>
+        <label for="type2">Type 2:</label>
+        <select id="type2">
+          <option value="">(None)</option>
+        </select>
+      </div>
+      <div class="result" id="result"></div>
+    </div>
+    <script src="types.js"></script>
+    <script>
+      // Sort type names alphabetically
+      const typeNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
+      const type1Sel = document.getElementById("type1");
+      const type2Sel = document.getElementById("type2");
+
+      // Populate type1 dropdown
+      for (const t of typeNames) {
+        const opt1 = document.createElement("option");
+        opt1.value = t;
+        opt1.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+        type1Sel.appendChild(opt1);
+      }
+
+      // Populate type2 dropdown, excluding selected type1
+      function updateType2Options() {
+        const selectedType1 = type1Sel.value;
+        type2Sel.innerHTML = '<option value="">(None)</option>';
+        for (const t of typeNames) {
+          if (t === selectedType1) continue;
+          const opt2 = document.createElement("option");
+          opt2.value = t;
+          opt2.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+          type2Sel.appendChild(opt2);
+        }
+      }
+
+      function getWeaknesses(type1, type2) {
+        const weaknesses = [];
+        for (const atkType of typeNames) {
+          let multiplier = 1;
+          if (types[type1].defense.doubleEffect.includes(atkType)) multiplier *= 2;
+          if (type2 && types[type2].defense.doubleEffect.includes(atkType)) multiplier *= 2;
+          if (types[type1].defense.halfEffect && types[type1].defense.halfEffect.includes(atkType)) multiplier /= 2;
+          if (type2 && types[type2].defense.halfEffect && types[type2].defense.halfEffect.includes(atkType))
+            multiplier /= 2;
+          if (types[type1].defense.noEffect && types[type1].defense.noEffect.includes(atkType)) multiplier = 0;
+          if (type2 && types[type2].defense.noEffect && types[type2].defense.noEffect.includes(atkType)) multiplier = 0;
+          if (multiplier > 1) weaknesses.push(atkType);
+        }
+        return weaknesses;
+      }
+
+      // For each weakness, get move types that are super effective against it
+      function getCoveragePerWeakness(weaknesses) {
+        const coverage = {};
+        for (const weakType of weaknesses) {
+          coverage[weakType] = [];
+          for (const [moveType, data] of Object.entries(types)) {
+            if (data.attack.doubleEffect.includes(weakType)) {
+              coverage[weakType].push(moveType);
+            }
+          }
+        }
+        return coverage;
+      }
+
+      // function getBestCoverageMoveTypes(weaknesses, stabTypes) {
+      //   // Greedy set cover: pick the move type that covers the most remaining weaknesses, up to 4 moves
+      //   const coverage = getCoveragePerWeakness(weaknesses);
+      //   const uncovered = new Set(weaknesses);
+      //   const moveTypes = Object.keys(types);
+      //   const selectedMoves = [];
+      //   const covers = {};
+
+      //   // Precompute which weaknesses each move type covers
+      //   for (const moveType of moveTypes) {
+      //     covers[moveType] = [];
+      //     for (const weakType of weaknesses) {
+      //       if (types[moveType].attack.doubleEffect.includes(weakType)) {
+      //         covers[moveType].push(weakType);
+      //       }
+      //     }
+      //   }
+
+      //   while (selectedMoves.length < 4 && uncovered.size > 0) {
+      //     // Find move type that covers the most uncovered weaknesses
+      //     let bestMove = null;
+      //     let bestCoverCount = 0;
+      //     for (const moveType of moveTypes) {
+      //       if (selectedMoves.includes(moveType)) continue;
+      //       const coverCount = covers[moveType].filter((w) => uncovered.has(w)).length;
+      //       if (coverCount > bestCoverCount) {
+      //         bestCoverCount = coverCount;
+      //         bestMove = moveType;
+      //       }
+      //     }
+      //     if (!bestMove || bestCoverCount === 0) break;
+      //     selectedMoves.push(bestMove);
+      //     for (const w of covers[bestMove]) {
+      //       uncovered.delete(w);
+      //     }
+      //   }
+
+      //   // Add STAB moves if less than 4 moves selected and not already present
+      //   for (const stab of stabTypes) {
+      //     if (selectedMoves.length >= 4) break;
+      //     if (!selectedMoves.includes(stab)) {
+      //       selectedMoves.push(stab);
+      //     }
+      //   }
+
+      //   return {
+      //     selectedMoves,
+      //     uncovered: Array.from(uncovered),
+      //   };
+      // }
+
+      function getBestCoverageMoveTypesAllOptions(weaknesses, stabTypes) {
+        const coverage = getCoveragePerWeakness(weaknesses);
+        let uncovered = new Set(weaknesses);
+        const selectedMoves = new Set();
+        const slots = [];
+
+        // 1. Use STAB moves that cover at least one weakness, always first
+        for (const stab of stabTypes) {
+          const coversNow = Array.from(uncovered).filter((w) => coverage[w].includes(stab));
+          if (coversNow.length && !selectedMoves.has(stab)) {
+            slots.push([stab]);
+            selectedMoves.add(stab);
+            coversNow.forEach((w) => uncovered.delete(w));
+          }
+        }
+
+        // 2. For each slot, group move types that all cover the same set of uncovered weaknesses (intersection)
+        while (slots.length < 4 && uncovered.size > 0) {
+          const moveTypes = Object.keys(types).filter((t) => !selectedMoves.has(t));
+          let bestGroup = [];
+          let bestCovered = [];
+
+          // Try all pairs and triples of move types to find the largest intersection of weaknesses
+          for (let i = 0; i < moveTypes.length; i++) {
+            const m1 = moveTypes[i];
+            const covers1 = Array.from(uncovered).filter((w) => coverage[w].includes(m1));
+            if (covers1.length > bestCovered.length) {
+              bestGroup = [m1];
+              bestCovered = covers1;
+            }
+            for (let j = i + 1; j < moveTypes.length; j++) {
+              const m2 = moveTypes[j];
+              // Intersection of weaknesses covered by both m1 and m2
+              const covers2 = covers1.filter((w) => coverage[w].includes(m2));
+              if (covers2.length > bestCovered.length) {
+                bestGroup = [m1, m2];
+                bestCovered = covers2;
+              }
+              for (let k = j + 1; k < moveTypes.length; k++) {
+                const m3 = moveTypes[k];
+                const covers3 = covers2.filter((w) => coverage[w].includes(m3));
+                if (covers3.length > bestCovered.length) {
+                  bestGroup = [m1, m2, m3];
+                  bestCovered = covers3;
+                }
+              }
+            }
+          }
+
+          if (bestGroup.length === 0 || bestCovered.length === 0) break;
+
+          slots.push(bestGroup);
+          bestGroup.forEach((move) => selectedMoves.add(move));
+          bestCovered.forEach((w) => uncovered.delete(w));
+        }
+
+        // 3. If fewer than 4 slots, fill with remaining STAB moves (if not already present)
+        for (const stab of stabTypes) {
+          if (slots.length >= 4) break;
+          if (!selectedMoves.has(stab)) {
+            slots.push([stab]);
+            selectedMoves.add(stab);
+          }
+        }
+
+        return {
+          slots,
+          uncovered: Array.from(uncovered),
+        };
+      }
+
+      function typeBadge(type, isStab = false) {
+        console.log(type, isStab)
+        return `<span class="type" style="background:${types[type].color}">${
+          type.charAt(0).toUpperCase() + type.slice(1)
+        }${isStab === true ? ` <span style="font-size:0.7em;">(STAB)</span>` : ""} </span>`;
+      }
+
+      function analyzeAndDisplay() {
+        const type1 = type1Sel.value;
+        const type2 = type2Sel.value || null;
+
+        if (!type1) {
+          document.getElementById("result").innerHTML = "Select at least one type.";
+          return;
+        }
+        const stabTypes = [type1];
+        if (type2 && type2 !== type1) stabTypes.push(type2);
+        const weaknesses = getWeaknesses(type1, type2);
+        let html = `<span class="weaknesses-label">Weaknesses:</span> ${
+          weaknesses.length ? weaknesses.map(typeBadge).join(" ") : "<span style='color:#3a5'>None</span>"
+        }<br>`;
+
+        // --- SUGGESTED WEAKNESSES OF SUPER EFFECTIVE TYPES ---
+        if (weaknesses.length) {
+          const coverage = getCoveragePerWeakness(weaknesses);
+          html += `<span class="weaknesses-label">Super Effective against weaknesses:</span>`;
+          html += '<table class="weaknesses-table"><tr><th>Weakness</th><th>Super Effective</th></tr>';
+          for (const weak of weaknesses) {
+            html += `<tr><td>${typeBadge(weak)}</td><td>${coverage[weak].map((move) => typeBadge(move, stabTypes.includes(move))).join(" ")}</td></tr>`;
+          
+          //   html += `<div class="coverage-group"><strong>${typeBadge(weak)}</strong>: `;
+          //   html += coverage[weak].map((move) => typeBadge(move, move === type1 || move === type2)).join(" ");
+          //   html += `</div>`;
+          }
+          // html += `</div>`;
+          html += `</table>`;
+        }
+
+        // --- SUGGESTED 4-MOVE COVERAGE TABLE ---
+        if (weaknesses.length) {
+          const { slots, uncovered } = getBestCoverageMoveTypesAllOptions(weaknesses, stabTypes);
+
+          html += `<span class="coverage-label">Suggested 4-move coverage:</span>`;
+          html += `<table class="coverage-table"><tr><th>Slot</th><th>Move Type(s)</th><th>Covers Weakness(es)</th></tr>`;
+
+          const coverage = getCoveragePerWeakness(weaknesses);
+          let remaining = new Set(weaknesses);
+
+          slots.forEach((moveTypes, i) => {
+            // For each move in this slot, get the set of weaknesses it covers
+            const moveWeaknessSets = moveTypes.map(move =>
+              new Set(weaknesses.filter(w => coverage[w].includes(move)))
+            );
+            // Intersection: weaknesses covered by all moves in this slot
+            let covered = [];
+            if (moveWeaknessSets.length > 0) {
+              covered = weaknesses.filter(w =>
+                moveWeaknessSets.every(set => set.has(w))
+              );
+            }
+
+            html += `<tr>
+              <td>${i + 1}</td>
+              <td>${moveTypes.map(move =>
+                typeBadge(move, stabTypes.includes(move))
+              ).join(" ")}</td>
+              <td>${covered.length ? covered.map(w => typeBadge(w)).join(" ") : "<span style='color:#aaa'>None</span>"}</td>
+            </tr>`;
+
+            covered.forEach((w) => remaining.delete(w));
+          });
+
+          html += `</table>`;
+
+          if (uncovered && uncovered.length) {
+            html += `<div style="margin-top:0.7em"><strong>Uncovered weaknesses:</strong> ${uncovered
+              .map(typeBadge)
+              .join(" ")}</div>`;
+          }
+        }
+
+        document.getElementById("result").innerHTML = html;
+      }
+
+      type1Sel.addEventListener("change", () => {
+        updateType2Options();
+        analyzeAndDisplay();
+      });
+      type2Sel.addEventListener("change", analyzeAndDisplay);
+
+      updateType2Options();
+      analyzeAndDisplay();
+    </script>
+  </body>
+</html>
